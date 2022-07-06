@@ -240,3 +240,7 @@ def create_search_indices(conn, config, drop=False):
     sql = SQLPreprocessor(conn, config)
 
     sql.run_sql_file(conn, 'indices.sql', drop=drop)
+
+def import_geotiff():
+    """Import map access views GeoTIFF file"""
+    subprocess.run(['raster2pgsql -C -t 100x100 osmviews.tiff public.gsocimport | psql nominatim'], check=False)

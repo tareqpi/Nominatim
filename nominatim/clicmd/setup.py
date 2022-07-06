@@ -60,6 +60,8 @@ class SetupAll:
                            help='Continue import even when errors in SQL are present')
         group.add_argument('--index-noanalyse', action='store_true',
                            help='Do not perform analyse operations during index (expert only)')
+        group.add_argument('--geotiff', action='append',
+                           help='testing this')
 
 
     @staticmethod
@@ -86,6 +88,9 @@ class SetupAll:
                                             args.osm2pgsql_options(0, 1),
                                             drop=args.no_updates,
                                             ignore_errors=args.ignore_errors)
+            LOG.warning('Importing GeoTIFF file')
+            database_import.import_geotiff()
+
 
             SetupAll._setup_tables(args.config, args.reverse_only)
 
