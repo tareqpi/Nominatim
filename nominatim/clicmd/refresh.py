@@ -7,11 +7,15 @@
 """
 Implementation of 'refresh' subcommand.
 """
-from argparse import ArgumentTypeError
+from typing import Tuple, Optional
+import argparse
 import logging
 from pathlib import Path
 
+from nominatim.config import Configuration
 from nominatim.db.connection import connect
+from nominatim.tokenizer.base import AbstractTokenizer
+from nominatim.clicmd.args import NominatimArgs
 
 # Do not repeat documentation of subcommand classes.
 # pylint: disable=C0111
@@ -20,12 +24,12 @@ from nominatim.db.connection import connect
 
 LOG = logging.getLogger()
 
-def _parse_osm_object(obj):
+def _parse_osm_object(obj: str) -> Tuple[str, int]:
     """ Parse the given argument into a tuple of OSM type and ID.
         Raises an ArgumentError if the format is not recognized.
     """
     if len(obj) < 2 or obj[0].lower() not in 'nrw' or not obj[1:].isdigit():
-        raise ArgumentTypeError("Cannot parse OSM ID. Expect format: [N|W|R]<id>.")
+        raise argparse.ArgumentTypeError("Cannot parse OSM ID. Expect format: [N|W|R]<id>.")
 
     return (obj[0].upper(), int(obj[1:]))
 
@@ -42,11 +46,10 @@ class UpdateRefresh:
     Warning: the 'update' command must not be run in parallel with other update
              commands like 'replication' or 'add-data'.
     """
-    def __init__(self):
-        self.tokenizer = None
+    def __init__(self) -> None:
+        self.tokenizer: Optional[AbstractTokenizer] = None
 
-    @staticmethod
-    def add_args(parser):
+    def add_args(self, parser: argparse.ArgumentParser) -> None:
         group = parser.add_argument_group('Data arguments')
         group.add_argument('--postcodes', action='store_true',
                            help='Update postcode centroid table')
@@ -60,6 +63,8 @@ class UpdateRefresh:
                            help='Update the PL/pgSQL functions in the database')
         group.add_argument('--wiki-data', action='store_true',
                            help='Update Wikipedia/data importance numbers')
+        group.add_argument('--osm-views', action='store_true',
+                           help='Update OSM views/data importance numbers')
         group.add_argument('--importance', action='store_true',
                            help='Recompute place importances (expensive!)')
         group.add_argument('--website', action='store_true',
@@ -80,7 +85,7 @@ class UpdateRefresh:
                            help='Enable debug warning statements in functions')
 
 
-    def run(self, args): #pylint: disable=too-many-branches
+    def run(self, args: NominatimArgs) -> int: #pylint: disable=too-many-branches, too-many-statements
         from ..tools import refresh, postcodes
         from ..indexer.indexer import Indexer
 
@@ -128,6 +133,17 @@ class UpdateRefresh:
                 LOG.fatal('FATAL: Wikipedia importance dump file not found')
                 return 1
 
+        if args.osm_views:
+            data_path = Path(args.project_dir)
+            LOG.warning('Import OSM views GeoTIFF data from %s', data_path)
+            num = refresh.import_osm_views_geotiff(args.config.get_libpq_dsn(), data_path)
+            if num == 1:
+                LOG.fatal('FATAL: OSM views GeoTIFF file not found')
+                return 1
+            if num == 2:
+                LOG.fatal('FATAL: PostGIS version number is less than 3')
+                return 1
+
         # Attention: importance MUST come after wiki data import.
         if args.importance:
             LOG.warning('Update importance values for database')
@@ -155,7 +171,7 @@ class UpdateRefresh:
         return 0
 
 
-    def _get_tokenizer(self, config):
+    def _get_tokenizer(self, config: Configuration) -> AbstractTokenizer:
         if self.tokenizer is None:
             from ..tokenizer import factory as tokenizer_factory
 

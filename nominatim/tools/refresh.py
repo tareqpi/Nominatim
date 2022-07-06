@@ -8,6 +8,7 @@
 Functions for bringing auxiliary data in the database up-to-date.
 """
 import logging
+import subprocess
 from textwrap import dedent
 from pathlib import Path
 
@@ -139,6 +140,30 @@ def import_wikipedia_articles(dsn, data_path, ignore_errors=False):
 
     return 0
 
+def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
+    """ Replaces the OSM views table with new data.
+
+        Returns 0 if all was well and 1 if the OSM views GeoTIFF file could not
+        be found. Throws an exception if there was an error reading the file.
+    """
+    datafile = data_path / 'osmviews.tiff'
+
+    if not datafile.exists():
+        return 1
+
+    postgis_version = conn.postgis_version_tuple()
+    if postgis_version[0] < 3:
+        return 2
+
+    with conn.cursor() as cur:
+        cur.execute('DROP TABLE IF EXISTS "osm_views"')
+        conn.commit()
+
+        cmd = f"raster2pgsql -s 4326 -I -C -t 100x100 {datafile} \
+            public.osm_views | psql nominatim > /dev/null"
+        subprocess.run(["/bin/bash", "-c" , cmd], check=True)
+
+    return 0
 
 def recompute_importance(conn):
     """ Recompute wikipedia links and importance for all entries in placex.
