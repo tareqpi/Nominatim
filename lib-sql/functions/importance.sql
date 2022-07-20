@@ -108,11 +108,7 @@ BEGIN
   FROM osm_views
   WHERE ST_Intersects(ST_ConvexHull(osm_views.rast), centroid) LIMIT 1 INTO result;
 
-  IF result IS NOT NULL THEN
-    return result;
-  ELSE
-    return 0;
-  END IF;
+  return COALESCE(result, 0);
 END;
 $$
 LANGUAGE plpgsql STABLE;

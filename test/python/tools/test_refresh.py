@@ -17,6 +17,10 @@ def test_refresh_import_wikipedia_not_existing(dsn):
     assert refresh.import_wikipedia_articles(dsn, Path('.')) == 1
 
 
+def test_refresh_import_osm_views_geotiff_not_existing(dsn):
+    assert refresh.import_osm_views_geotiff(dsn, Path('.')) == 1
+
+
 @pytest.mark.parametrize("replace", (True, False))
 def test_refresh_import_wikipedia(dsn, src_dir, table_factory, temp_db_cursor, replace):
     if replace:
@@ -34,6 +38,7 @@ def test_recompute_importance(placex_table, table_factory, temp_db_conn, temp_db
     temp_db_cursor.execute("""CREATE OR REPLACE FUNCTION compute_importance(extratags HSTORE,
                                               country_code varchar(2),
                                               osm_type varchar(1), osm_id BIGINT,
+                                              centroid GEOMETRY,
                                               OUT importance FLOAT,
                                               OUT wikipedia TEXT)
                                AS $$ SELECT 0.1::float, 'foo'::text $$ LANGUAGE SQL""")
