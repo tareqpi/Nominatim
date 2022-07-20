@@ -73,6 +73,7 @@ def setup_database_skeleton(dsn, rouser=None):
         with conn.cursor() as cur:
             cur.execute('CREATE EXTENSION IF NOT EXISTS hstore')
             cur.execute('CREATE EXTENSION IF NOT EXISTS postgis')
+            cur.execute('CREATE EXTENSION IF NOT EXISTS postgis_raster')
         conn.commit()
 
         _require_version('PostGIS',
@@ -241,6 +242,6 @@ def create_search_indices(conn, config, drop=False):
 
     sql.run_sql_file(conn, 'indices.sql', drop=drop)
 
-def import_geotiff():
-    """Import map access views GeoTIFF file"""
-    subprocess.run(['raster2pgsql -C -t 100x100 osmviews.tiff public.gsocimport | psql nominatim'], check=False)
+def import_osm_views_geotiff():
+    """Import OSM views GeoTIFF file"""
+    subprocess.run("raster2pgsql -s 4326 -I -C -t 100x100 -e osmviews.tiff public.osmviews | psql nominatim", shell=True, check=True)
