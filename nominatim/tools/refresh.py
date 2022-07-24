@@ -9,6 +9,7 @@ Functions for bringing auxiliary data in the database up-to-date.
 """
 from typing import MutableSequence, Tuple, Any, Type, Mapping, Sequence, List, cast
 import logging
+import subprocess
 from textwrap import dedent
 from pathlib import Path
 
@@ -18,7 +19,8 @@ from nominatim.config import Configuration
 from nominatim.db.connection import Connection
 from nominatim.db.utils import execute_file
 from nominatim.db.sql_preprocessor import SQLPreprocessor
-from nominatim.version import version_str
+from nominatim.tools.database_import import _require_version
+from nominatim.version import version_str, POSTGRESQL_REQUIRED_VERSION, POSTGIS_REQUIRED_VERSION
 
 LOG = logging.getLogger()
 
@@ -146,24 +148,28 @@ def import_wikipedia_articles(dsn: str, data_path: Path, ignore_errors: bool = F
 
     return 0
 
-def import_osm_views_geotiff(dsn, data_path, ignore_errors=False):
+def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
     """ Replaces the OSM views table with new data.
         
-        Returns 0 if all was well and 1 if the GeoTIFF file could not
+        Returns 0 if all was well and 1 if the OSM views GeoTIFF file could not
         be found. Throws an exception if there was an error reading the file.
     """
     datafile = data_path / 'osmviews.tiff'
 
-    if not datafile.exists():
-        return 1
+    with conn.cursor() as cur:
+        _require_version('PostgreSQL server',
+                         conn.server_version_tuple(),
+                         POSTGRESQL_REQUIRED_VERSION)
+        _require_version('PostGIS',
+                         conn.postgis_version_tuple(),
+                         POSTGIS_REQUIRED_VERSION)
 
-    pre_code = """BEGIN;
-                  DROP TABLE IF EXISTS "osmviews";
-               """
-    post_code = "COMMIT"
-    execute_file(dsn, datafile, ignore_errors=ignore_errors,
-                 pre_code=pre_code, post_code=post_code)
+        if not datafile.exists():
+            return 1
 
+        cur.execute('DROP TABLE IF EXISTS "osm_views"')
+        subprocess.run("raster2pgsql -s 4326 -I -C -t 100x100 osmviews.tiff public.osm_views | psql nominatim", shell=True, check=True)
+    
     return 0
 
 def recompute_importance(conn: Connection) -> None:

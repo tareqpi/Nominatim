@@ -108,9 +108,9 @@ class SetupAll:
             LOG.warning('Importing OSM views GeoTIFF data')
             database_import.import_osm_views_geotiff()
             data_path = Path(args.project_dir)
-            if refresh.import_osm_views_geotiff(args.config.get_libpq_dsn(),
-                                                 data_path) > 0:
-                LOG.error('OSM views GeoTIFF file not found. '
+            with connect(args.config.get_libpq_dsn()) as conn:
+                if refresh.import_osm_views_geotiff(conn, data_path) > 0:
+                    LOG.error('OSM views GeoTIFF file not found. '
                           'Calculating importance values of locations will not use OSM views data.')
 
         if args.continue_at is None or args.continue_at == 'load-data':
