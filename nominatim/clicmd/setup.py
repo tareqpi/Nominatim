@@ -107,7 +107,7 @@ class SetupAll:
             
             LOG.warning('Importing OSM views GeoTIFF data')
             database_import.import_osm_views_geotiff()
-            data_path = Path(args.config.OSM_VIEWS_DATA_PATH or args.project_dir)
+            data_path = Path(args.project_dir)
             if refresh.import_osm_views_geotiff(args.config.get_libpq_dsn(),
                                                  data_path) > 0:
                 LOG.error('OSM views GeoTIFF file not found. '

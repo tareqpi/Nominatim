@@ -134,8 +134,7 @@ class UpdateRefresh:
                 return 1
         
         if args.osm_views:
-            data_path = Path(args.config.OSM_VIEWS_DATA_PATH
-                             or args.project_dir)
+            data_path = Path(args.project_dir)
             LOG.warning('Import OSM views GeoTIFF data from %s', data_path)
             if refresh.import_osm_views_geotiff(args.config.get_libpq_dsn(),
                                                  data_path) > 0:

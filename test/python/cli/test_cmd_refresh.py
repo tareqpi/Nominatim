@@ -73,8 +73,6 @@ class TestRefresh:
         assert self.call_nominatim('refresh', '--wiki-data') == 1
 
     def test_refresh_osm_views_geotiff_file_not_found(self, monkeypatch):
-        monkeypatch.setenv('NOMINATIM_OSM_VIEWS_DATA_PATH', 'gjoiergjeroi345Q')
-
         assert self.call_nominatim('refresh', '--osm-views') == 1
 
     def test_refresh_importance_computed_after_wiki_and_osm_views_import(self, monkeypatch):
