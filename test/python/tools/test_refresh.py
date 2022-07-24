@@ -37,12 +37,12 @@ def test_refresh_import_wikipedia(dsn, src_dir, table_factory, temp_db_cursor, r
 @pytest.mark.parametrize("replace", (True, False))
 def test_refresh_import_osm_views_geotiff(dsn, src_dir, table_factory, temp_db_cursor, replace):
     if replace:
-        table_factory('osmviews')
+        table_factory('osm_views')
 
     # use the small osm views GeoTIFF file for the API testdb
     assert refresh.import_osm_views_geotiff(dsn, src_dir / 'test' / 'testdb') == 0
 
-    assert temp_db_cursor.table_rows('osmviews') > 0
+    assert temp_db_cursor.table_rows('osm_views') > 0
 
 
 def test_recompute_importance(placex_table, table_factory, temp_db_conn, temp_db_cursor):
