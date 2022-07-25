@@ -103,8 +103,9 @@ class SetupAll:
             if refresh.import_wikipedia_articles(args.config.get_libpq_dsn(),
                                                  data_path) > 0:
                 LOG.error('Wikipedia importance dump file not found. '
-                          'Calculating importance values of locations will not use Wikipedia importance data.')
-            
+                          'Calculating importance values of locations will not \
+                            use Wikipedia importance data.')
+
             LOG.warning('Importing OSM views GeoTIFF data')
             database_import.import_osm_views_geotiff()
             data_path = Path(args.project_dir)

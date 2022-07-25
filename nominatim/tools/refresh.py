@@ -150,11 +150,14 @@ def import_wikipedia_articles(dsn: str, data_path: Path, ignore_errors: bool = F
 
 def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
     """ Replaces the OSM views table with new data.
-        
+
         Returns 0 if all was well and 1 if the OSM views GeoTIFF file could not
         be found. Throws an exception if there was an error reading the file.
     """
     datafile = data_path / 'osmviews.tiff'
+
+    if not datafile.exists():
+        return 1
 
     with conn.cursor() as cur:
         _require_version('PostgreSQL server',
@@ -164,12 +167,12 @@ def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
                          conn.postgis_version_tuple(),
                          POSTGIS_REQUIRED_VERSION)
 
-        if not datafile.exists():
-            return 1
+        cur.execute('DROP TABLE IF EXISTS "osm_views";')
+        conn.commit()
 
-        cur.execute('DROP TABLE IF EXISTS osm_views')
-        subprocess.run("raster2pgsql -s 4326 -I -C -t 100x100 osmviews.tiff public.osm_views | psql nominatim", shell=True, check=True)
-    
+        subprocess.run("raster2pgsql -s 4326 -I -C -t 100x100 osmviews.tiff \
+            public.osm_views | psql nominatim", shell=True, check=True)
+
     return 0
 
 def recompute_importance(conn: Connection) -> None:
