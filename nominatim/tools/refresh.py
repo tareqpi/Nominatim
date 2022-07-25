@@ -167,7 +167,7 @@ def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
         if not datafile.exists():
             return 1
 
-        cur.execute('DROP TABLE IF EXISTS "osm_views"')
+        cur.execute('DROP TABLE IF EXISTS osm_views')
         subprocess.run("raster2pgsql -s 4326 -I -C -t 100x100 osmviews.tiff public.osm_views | psql nominatim", shell=True, check=True)
     
     return 0
