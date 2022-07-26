@@ -79,7 +79,7 @@ def setup_database_skeleton(dsn: str, rouser: Optional[str] = None) -> None:
             postgis_version = conn.postgis_version_tuple()
             if postgis_version[0] >= 3:
                 cur.execute('CREATE EXTENSION IF NOT EXISTS postgis_raster')
-            
+
         conn.commit()
 
         _require_version('PostGIS',
