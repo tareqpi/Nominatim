@@ -92,7 +92,8 @@ The file is about 380MB and adds around 4GB to the Nominatim database. Importing
 OSM views into Nominatim takes a little over 3 hours.
 
 !!! warning
-    Importing OSM views is currently an experimental feature
+    Importing OSM views is currently an experimental feature. OSM views data are
+    not yet included in the importance values calculations.
 
 !!! tip
     If you forgot to download the wikipedia rankings or OSM views, then you can 
