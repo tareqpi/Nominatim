@@ -245,10 +245,3 @@ def create_search_indices(conn: Connection, config: Configuration, drop: bool = 
     sql = SQLPreprocessor(conn, config)
 
     sql.run_sql_file(conn, 'indices.sql', drop=drop)
-
-def import_osm_views_geotiff() -> None:
-    """Import OSM views GeoTIFF file"""
-
-    cmd = "raster2pgsql -s 4326 -I -C -t 100x100 osmviews.tiff \
-        public.osm_views | psql nominatim > /dev/null"
-    subprocess.run(["/bin/bash", "-c" , cmd], check=True)

@@ -107,7 +107,6 @@ class SetupAll:
                             use Wikipedia importance data.')
 
             LOG.warning('Importing OSM views GeoTIFF data')
-            database_import.import_osm_views_geotiff()
             data_path = Path(args.project_dir)
             with connect(args.config.get_libpq_dsn()) as conn:
                 if refresh.import_osm_views_geotiff(conn, data_path) > 0:
