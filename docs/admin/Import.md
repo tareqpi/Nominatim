@@ -84,6 +84,22 @@ The file is about 400MB and adds around 4GB to the Nominatim database.
     `nominatim refresh --wiki-data --importance`. Updating importances for
     a planet can take a couple of hours.
 
+### OSM views 
+OSM publishes aggregate map access numbers that are generated based on the users’ 
+behavior when viewing locations on the map. This data is also optional and 
+it complements wikipedia/wikidata rankings to further enhance the search results
+if added.
+OSM views data is avalaible as a GeoTIFF file. Put it into your project directory:
+
+    cd $PROJECT_DIR
+    wget https://qrank.wmcloud.org/download/osmviews.tiff
+
+The file is about 380MB and adds around 4GB to the Nominatim database. Importing
+OSM views into Nominatim takes a little over 3 hours.
+
+!!! Note
+    This is currently an experimental feature
+
 ### External postcodes
 
 Nominatim can use postcodes from an external source to improve searching with
