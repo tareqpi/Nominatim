@@ -248,5 +248,7 @@ def create_search_indices(conn: Connection, config: Configuration, drop: bool = 
 
 def import_osm_views_geotiff():
     """Import OSM views GeoTIFF file"""
-    subprocess.run("raster2pgsql -s 4326 -I -C -t 100x100 osmviews.tiff \
-        public.osm_views | psql nominatim", shell=True, check=True)
+
+    cmd = "raster2pgsql -s 4326 -I -C -e -t 100x100 osmviews.tiff \
+        public.osm_views | psql nominatim > /dev/null"
+    subprocess.run(["/bin/bash", "-c" , cmd], check=True)
