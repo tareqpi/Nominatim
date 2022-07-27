@@ -19,8 +19,7 @@ from nominatim.config import Configuration
 from nominatim.db.connection import Connection
 from nominatim.db.utils import execute_file
 from nominatim.db.sql_preprocessor import SQLPreprocessor
-from nominatim.tools.database_import import _require_version
-from nominatim.version import version_str, POSTGRESQL_REQUIRED_VERSION, POSTGIS_REQUIRED_VERSION
+from nominatim.version import version_str
 
 LOG = logging.getLogger()
 
@@ -159,18 +158,15 @@ def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
     if not datafile.exists():
         return 1
 
-    with conn.cursor() as cur:
-        _require_version('PostgreSQL server',
-                         conn.server_version_tuple(),
-                         POSTGRESQL_REQUIRED_VERSION)
-        _require_version('PostGIS',
-                         conn.postgis_version_tuple(),
-                         POSTGIS_REQUIRED_VERSION)
+    postgis_version = conn.postgis_version_tuple()
+    if postgis_version[0] < 3:
+        return 2
 
-        cur.execute('DROP TABLE IF EXISTS "osm_views";')
+    with conn.cursor() as cur:
+        cur.execute('DROP TABLE IF EXISTS "osm_views"')
         conn.commit()
 
-        cmd = "raster2pgsql -s 4326 -I -C -t 100x100 osmviews.tiff \
+        cmd = f"raster2pgsql -s 4326 -I -C -t 100x100 {datafile} \
             public.osm_views | psql nominatim > /dev/null"
         subprocess.run(["/bin/bash", "-c" , cmd], check=True)
 
