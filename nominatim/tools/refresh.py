@@ -7,6 +7,7 @@
 """
 Functions for bringing auxiliary data in the database up-to-date.
 """
+from typing import MutableSequence, Tuple, Any, Type, Mapping, Sequence, List, cast
 import logging
 import subprocess
 from textwrap import dedent
@@ -14,6 +15,8 @@ from pathlib import Path
 
 from psycopg2 import sql as pysql
 
+from nominatim.config import Configuration
+from nominatim.db.connection import Connection, connect
 from nominatim.db.utils import execute_file
 from nominatim.db.sql_preprocessor import SQLPreprocessor
 from nominatim.version import version_str
@@ -22,7 +25,8 @@ LOG = logging.getLogger()
 
 OSM_TYPE = {'N': 'node', 'W': 'way', 'R': 'relation'}
 
-def _add_address_level_rows_from_entry(rows, entry):
+def _add_address_level_rows_from_entry(rows: MutableSequence[Tuple[Any, ...]],
+                                       entry: Mapping[str, Any]) -> None:
     """ Converts a single entry from the JSON format for address rank
         descriptions into a flat format suitable for inserting into a
         PostgreSQL table and adds these lines to `rows`.
@@ -39,14 +43,15 @@ def _add_address_level_rows_from_entry(rows, entry):
             for country in countries:
                 rows.append((country, key, value, rank_search, rank_address))
 
-def load_address_levels(conn, table, levels):
+
+def load_address_levels(conn: Connection, table: str, levels: Sequence[Mapping[str, Any]]) -> None:
     """ Replace the `address_levels` table with the contents of `levels'.
 
         A new table is created any previously existing table is dropped.
         The table has the following columns:
             country, class, type, rank_search, rank_address
     """
-    rows = []
+    rows: List[Tuple[Any, ...]]  = []
     for entry in levels:
         _add_address_level_rows_from_entry(rows, entry)
 
@@ -70,7 +75,7 @@ def load_address_levels(conn, table, levels):
     conn.commit()
 
 
-def load_address_levels_from_config(conn, config):
+def load_address_levels_from_config(conn: Connection, config: Configuration) -> None:
     """ Replace the `address_levels` table with the content as
         defined in the given configuration. Uses the parameter
         NOMINATIM_ADDRESS_LEVEL_CONFIG to determine the location of the
@@ -80,7 +85,9 @@ def load_address_levels_from_config(conn, config):
     load_address_levels(conn, 'address_levels', cfg)
 
 
-def create_functions(conn, config, enable_diff_updates=True, enable_debug=False):
+def create_functions(conn: Connection, config: Configuration,
+                     enable_diff_updates: bool = True,
+                     enable_debug: bool = False) -> None:
     """ (Re)create the PL/pgSQL functions.
     """
     sql = SQLPreprocessor(conn, config)
@@ -117,10 +124,10 @@ PHP_CONST_DEFS = (
 )
 
 
-def import_wikipedia_articles(dsn, data_path, ignore_errors=False):
+def import_wikipedia_articles(dsn: str, data_path: Path, ignore_errors: bool = False) -> int:
     """ Replaces the wikipedia importance tables with new data.
         The import is run in a single transaction so that the new data
-        is replace seemlessly.
+        is replace seamlessly.
 
         Returns 0 if all was well and 1 if the importance file could not
         be found. Throws an exception if there was an error reading the file.
@@ -140,32 +147,52 @@ def import_wikipedia_articles(dsn, data_path, ignore_errors=False):
 
     return 0
 
-def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
+def import_osm_views_geotiff(dsn: str, data_path: Path) -> int:
     """ Replaces the OSM views table with new data.
 
         Returns 0 if all was well and 1 if the OSM views GeoTIFF file could not
         be found. Throws an exception if there was an error reading the file.
     """
     datafile = data_path / 'osmviews.tiff'
-
     if not datafile.exists():
         return 1
+    with connect(dsn) as conn:
 
-    postgis_version = conn.postgis_version_tuple()
-    if postgis_version[0] < 3:
-        return 2
+        postgis_version = conn.postgis_version_tuple()
+        if postgis_version[0] < 3:
+            return 2
 
-    with conn.cursor() as cur:
-        cur.execute('DROP TABLE IF EXISTS "osm_views"')
-        conn.commit()
+        with conn.cursor() as cur:
+            cur.drop_table("osm_views")
+            cur.drop_table("osm_views_stat")
 
-        cmd = f"raster2pgsql -s 4326 -I -C -t 100x100 {datafile} \
-            public.osm_views | psql nominatim > /dev/null"
-        subprocess.run(["/bin/bash", "-c" , cmd], check=True)
+            # -ovr: 6 -> zoom 12, 5 -> zoom 13, 4 -> zoom 14, 3 -> zoom 15
+            reproject_geotiff = f"gdalwarp -q -multi -ovr 3 -overwrite \
+                -co COMPRESS=LZW -tr 0.01 0.01 -t_srs EPSG:4326 {datafile} raster2import.tiff"
+            subprocess.run(["/bin/bash", "-c" , reproject_geotiff], check=True)
+
+            tile_size = 256
+            import_geotiff = f"raster2pgsql -I -C -Y -t {tile_size}x{tile_size} raster2import.tiff \
+                public.osm_views | psql {dsn} > /dev/null"
+            subprocess.run(["/bin/bash", "-c" , import_geotiff], check=True)
+
+            cleanup = "rm raster2import.tiff"
+            subprocess.run(["/bin/bash", "-c" , cleanup], check=True)
+
+            # To normalize osm views data, the max view value is needed
+            cur.execute(f"""
+            CREATE TABLE osm_views_stat AS (
+                SELECT MAX(ST_Value(osm_views.rast, 1, x, y)) AS max_views_count
+                FROM osm_views CROSS JOIN
+                generate_series(1, {tile_size}) As x
+                CROSS JOIN generate_series(1, {tile_size}) As y
+                WHERE x <= ST_Width(rast) AND y <= ST_Height(rast));
+            """)
+            conn.commit()
 
     return 0
 
-def recompute_importance(conn):
+def recompute_importance(conn: Connection) -> None:
     """ Recompute wikipedia links and importance for all entries in placex.
         This is a long-running operations that must not be executed in
         parallel with updates.
@@ -175,7 +202,7 @@ def recompute_importance(conn):
         cur.execute("""
             UPDATE placex SET (wikipedia, importance) =
                (SELECT wikipedia, importance
-                FROM compute_importance(extratags, country_code, osm_type, osm_id))
+                FROM compute_importance(extratags, country_code, osm_type, osm_id, centroid))
             """)
         cur.execute("""
             UPDATE placex s SET wikipedia = d.wikipedia, importance = d.importance
@@ -188,18 +215,19 @@ def recompute_importance(conn):
     conn.commit()
 
 
-def _quote_php_variable(var_type, config, conf_name):
+def _quote_php_variable(var_type: Type[Any], config: Configuration,
+                        conf_name: str) -> str:
     if var_type == bool:
         return 'true' if config.get_bool(conf_name) else 'false'
 
     if var_type == int:
-        return getattr(config, conf_name)
+        return cast(str, getattr(config, conf_name))
 
     if not getattr(config, conf_name):
         return 'false'
 
     if var_type == Path:
-        value = str(config.get_path(conf_name))
+        value = str(config.get_path(conf_name) or '')
     else:
         value = getattr(config, conf_name)
 
@@ -207,7 +235,7 @@ def _quote_php_variable(var_type, config, conf_name):
     return f"'{quoted}'"
 
 
-def setup_website(basedir, config, conn):
+def setup_website(basedir: Path, config: Configuration, conn: Connection) -> None:
     """ Create the website script stubs.
     """
     if not basedir.exists():
@@ -240,7 +268,8 @@ def setup_website(basedir, config, conn):
             (basedir / script).write_text(template.format(script), 'utf-8')
 
 
-def invalidate_osm_object(osm_type, osm_id, conn, recursive=True):
+def invalidate_osm_object(osm_type: str, osm_id: int, conn: Connection,
+                          recursive: bool = True) -> None:
     """ Mark the given OSM object for reindexing. When 'recursive' is set
         to True (the default), then all dependent objects are marked for
         reindexing as well.
