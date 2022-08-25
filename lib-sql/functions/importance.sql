@@ -98,34 +98,70 @@ $$
 LANGUAGE plpgsql STABLE;
 
 
+CREATE OR REPLACE FUNCTION get_osm_views(centroid GEOMETRY)
+  RETURNS BIGINT
+  AS $$
+DECLARE
+  result BIGINT;
+BEGIN
+  SELECT ST_Value(osm_views.rast, ST_setSRID(ST_AsText(centroid), 4326))
+  FROM osm_views
+  WHERE ST_Intersects(osm_views.rast, centroid) LIMIT 1 INTO result;
+  return result;
+END;
+$$
+LANGUAGE plpgsql STABLE;
+
+
+-- CREATE OR REPLACE FUNCTION normalize_osm_views(views BIGINT)
+--   RETURNS FLOAT
+--   AS $$
+-- DECLARE
+--   log_views BIGINT;
+--   normalized_importance FLOAT;
+-- BEGIN
+
+--   log_views := (log(views-9,10))/(log(500000,10));
+--   normalized_importance := POWER(log_views,1.8)*300/255;
+--   RETURN normalized_importance;
+-- END;
+-- $$
+-- LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION compute_importance(extratags HSTORE,
                                               country_code varchar(2),
-                                              osm_type varchar(1), osm_id BIGINT)
+                                              osm_type varchar(1), osm_id BIGINT,
+                                              centroid GEOMETRY)
   RETURNS place_importance
   AS $$
 DECLARE
   match RECORD;
   result place_importance;
 BEGIN
-  FOR match IN SELECT * FROM get_wikipedia_match(extratags, country_code)
-               WHERE language is not NULL
-  LOOP
-    result.importance := match.importance;
-    result.wikipedia := match.language || ':' || match.title;
-    RETURN result;
-  END LOOP;
+  -- result.views := get_osm_views(centroid);
+  -- result.importance := normalize_osm_views(result.views) * 0.35;
+  result.importance := get_osm_views(centroid);
 
-  IF extratags ? 'wikidata' THEN
-    FOR match IN SELECT * FROM wikipedia_article
-                  WHERE wd_page_title = extratags->'wikidata'
-                  ORDER BY language = 'en' DESC, langcount DESC LIMIT 1 LOOP
-      result.importance := match.importance;
-      result.wikipedia := match.language || ':' || match.title;
-      RETURN result;
-    END LOOP;
-  END IF;
+  -- after that, add wiki importance value to importance if they have one
+  -- FOR match IN SELECT * FROM get_wikipedia_match(extratags, country_code)
+  --              WHERE language is not NULL
+  -- LOOP
+  --   result.importance := result.importance + match.importance * 0.65;
+  --   result.wikipedia := match.language || ':' || match.title;
+  --   RETURN result;
+  -- END LOOP;
 
-  RETURN null;
+  -- IF extratags ? 'wikidata' THEN
+  --   FOR match IN SELECT * FROM wikipedia_article
+  --                 WHERE wd_page_title = extratags->'wikidata'
+  --                 ORDER BY language = 'en' DESC, langcount DESC LIMIT 1 LOOP
+  --     result.importance := match.importance;
+  --     result.wikipedia := match.language || ':' || match.title;
+  --     RETURN result;
+  --   END LOOP;
+  -- END IF;
+
+  RETURN result;
 END;
 $$
 LANGUAGE plpgsql;

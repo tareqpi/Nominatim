@@ -166,8 +166,8 @@ def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
         cur.execute('DROP TABLE IF EXISTS "osm_views"')
         conn.commit()
 
-        cmd = f"raster2pgsql -s 4326 -I -C -t 100x100 {datafile} \
-            public.osm_views | psql nominatim > /dev/null"
+        cmd = f"raster2pgsql -s 4326 -I -C -Y -t 100x100 {datafile} \
+            public.osm_views | psql mini_nominatim > /dev/null"
         subprocess.run(["/bin/bash", "-c" , cmd], check=True)
 
     return 0
@@ -182,7 +182,7 @@ def recompute_importance(conn: Connection) -> None:
         cur.execute("""
             UPDATE placex SET (wikipedia, importance) =
                (SELECT wikipedia, importance
-                FROM compute_importance(extratags, country_code, osm_type, osm_id))
+                FROM compute_importance(extratags, country_code, osm_type, osm_id, centroid))
             """)
         cur.execute("""
             UPDATE placex s SET wikipedia = d.wikipedia, importance = d.importance
