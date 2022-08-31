@@ -1079,7 +1079,7 @@ BEGIN
 
     SELECT wikipedia, importance
       FROM compute_importance(location.extratags, NEW.country_code,
-                              'N', location.osm_id, location.centroid)
+                              'N', location.osm_id, NEW.centroid)
       INTO linked_wikipedia,linked_importance;
 
     -- Use the maximum importance if one could be computed from the linked object.

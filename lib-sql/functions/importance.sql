@@ -104,29 +104,40 @@ CREATE OR REPLACE FUNCTION get_osm_views(centroid GEOMETRY)
 DECLARE
   result BIGINT;
 BEGIN
-  SELECT ST_Value(osm_views.rast, ST_setSRID(ST_AsText(centroid), 4326))
+  SELECT ST_Value(osm_views.rast, centroid)
   FROM osm_views
   WHERE ST_Intersects(osm_views.rast, centroid) LIMIT 1 INTO result;
-  return result;
+  IF result IS NOT NULL;
+    return result;
+  ELSE
+    return 0;
+  END IF;
 END;
 $$
 LANGUAGE plpgsql STABLE;
 
 
--- CREATE OR REPLACE FUNCTION normalize_osm_views(views BIGINT)
---   RETURNS FLOAT
---   AS $$
--- DECLARE
---   log_views BIGINT;
---   normalized_importance FLOAT;
--- BEGIN
+CREATE OR REPLACE FUNCTION normalize_osm_views(views BIGINT)
+  RETURNS FLOAT
+  AS $$
+  DECLARE
+    normalized_osm_views FLOAT;
+  BEGIN
+    IF views > 0 THEN
+      normalized_osm_views := (LOG(views))/(LOG(6000000));  
+    ELSE
+      normalized_osm_views := 0.0;
+    END IF;
 
---   log_views := (log(views-9,10))/(log(500000,10));
---   normalized_importance := POWER(log_views,1.8)*300/255;
---   RETURN normalized_importance;
--- END;
--- $$
--- LANGUAGE plpgsql;
+    IF normalized_osm_views > 1.0 THEN
+      RETURN 1.0;
+    ELSE
+      RETURN normalized_osm_views;
+    END IF;
+  END;
+$$
+LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION compute_importance(extratags HSTORE,
                                               country_code varchar(2),
@@ -137,29 +148,30 @@ CREATE OR REPLACE FUNCTION compute_importance(extratags HSTORE,
 DECLARE
   match RECORD;
   result place_importance;
+  views BIGINT;
 BEGIN
-  -- result.views := get_osm_views(centroid);
-  -- result.importance := normalize_osm_views(result.views) * 0.35;
-  result.importance := get_osm_views(centroid);
+  -- -- add OSM views importance
+  views := get_osm_views(centroid);
+  result.importance := normalize_osm_views(views) * 0.35;
 
-  -- after that, add wiki importance value to importance if they have one
-  -- FOR match IN SELECT * FROM get_wikipedia_match(extratags, country_code)
-  --              WHERE language is not NULL
-  -- LOOP
-  --   result.importance := result.importance + match.importance * 0.65;
-  --   result.wikipedia := match.language || ':' || match.title;
-  --   RETURN result;
-  -- END LOOP;
+  -- add wiki importance value to importance if they have one
+  FOR match IN SELECT * FROM get_wikipedia_match(extratags, country_code)
+               WHERE language is not NULL
+  LOOP
+    result.importance := result.importance + match.importance * 0.65;
+    result.wikipedia := match.language || ':' || match.title;
+    RETURN result;
+  END LOOP;
 
-  -- IF extratags ? 'wikidata' THEN
-  --   FOR match IN SELECT * FROM wikipedia_article
-  --                 WHERE wd_page_title = extratags->'wikidata'
-  --                 ORDER BY language = 'en' DESC, langcount DESC LIMIT 1 LOOP
-  --     result.importance := match.importance;
-  --     result.wikipedia := match.language || ':' || match.title;
-  --     RETURN result;
-  --   END LOOP;
-  -- END IF;
+  IF extratags ? 'wikidata' THEN
+    FOR match IN SELECT * FROM wikipedia_article
+                  WHERE wd_page_title = extratags->'wikidata'
+                  ORDER BY language = 'en' DESC, langcount DESC LIMIT 1 LOOP
+      result.importance := result.importance + match.importance * 0.65;
+      result.wikipedia := match.language || ':' || match.title;
+      RETURN result;
+    END LOOP;
+  END IF;
 
   RETURN result;
 END;

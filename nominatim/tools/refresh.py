@@ -165,10 +165,16 @@ def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
     with conn.cursor() as cur:
         cur.execute('DROP TABLE IF EXISTS "osm_views"')
         conn.commit()
-
-        cmd = f"raster2pgsql -s 4326 -I -C -Y -t 100x100 {datafile} \
+        reproject_geotiff = f"gdalwarp -tr 0.01 0.01 -co COMPRESS=LZW -t_srs EPSG:4326 \
+            {datafile} osmviews_4326.tiff"
+        subprocess.run(["/bin/bash", "-c" , reproject_geotiff], check=True)
+        
+        import_geotiff = "raster2pgsql -I -C -Y -t 100x100 osmviews_4326.tiff \
             public.osm_views | psql mini_nominatim > /dev/null"
-        subprocess.run(["/bin/bash", "-c" , cmd], check=True)
+        subprocess.run(["/bin/bash", "-c" , import_geotiff], check=True)
+        
+        cleanup = "rm osmviews_4326.tiff"
+        subprocess.run(["/bin/bash", "-c" , cleanup], check=True)
 
     return 0
 
