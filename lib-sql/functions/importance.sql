@@ -106,7 +106,7 @@ DECLARE
 BEGIN
   SELECT ST_Value(osm_views.rast, centroid)
   FROM osm_views
-  WHERE ST_Intersects(osm_views.rast, centroid) LIMIT 1 INTO result;
+  WHERE ST_Intersects(ST_ConvexHull(osm_views.rast), centroid) LIMIT 1 INTO result;
   IF result IS NOT NULL;
     return result;
   ELSE
