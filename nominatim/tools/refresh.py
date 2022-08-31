@@ -16,7 +16,7 @@ from pathlib import Path
 from psycopg2 import sql as pysql
 
 from nominatim.config import Configuration
-from nominatim.db.connection import Connection
+from nominatim.db.connection import Connection, connect
 from nominatim.db.utils import execute_file
 from nominatim.db.sql_preprocessor import SQLPreprocessor
 from nominatim.version import version_str
@@ -147,7 +147,7 @@ def import_wikipedia_articles(dsn: str, data_path: Path, ignore_errors: bool = F
 
     return 0
 
-def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
+def import_osm_views_geotiff(dsn: str, data_path: Path) -> int:
     """ Replaces the OSM views table with new data.
 
         Returns 0 if all was well and 1 if the OSM views GeoTIFF file could not
@@ -157,24 +157,25 @@ def import_osm_views_geotiff(conn: Connection, data_path: Path) -> int:
 
     if not datafile.exists():
         return 1
+    with connect(dsn) as conn:
 
-    postgis_version = conn.postgis_version_tuple()
-    if postgis_version[0] < 3:
-        return 2
+        postgis_version = conn.postgis_version_tuple()
+        if postgis_version[0] < 3:
+            return 2
 
-    with conn.cursor() as cur:
-        cur.execute('DROP TABLE IF EXISTS "osm_views"')
-        conn.commit()
-        reproject_geotiff = f"gdalwarp -tr 0.01 0.01 -co COMPRESS=LZW -t_srs EPSG:4326 \
-            {datafile} osmviews_4326.tiff"
-        subprocess.run(["/bin/bash", "-c" , reproject_geotiff], check=True)
-        
-        import_geotiff = "raster2pgsql -I -C -Y -t 100x100 osmviews_4326.tiff \
-            public.osm_views | psql mini_nominatim > /dev/null"
-        subprocess.run(["/bin/bash", "-c" , import_geotiff], check=True)
-        
-        cleanup = "rm osmviews_4326.tiff"
-        subprocess.run(["/bin/bash", "-c" , cleanup], check=True)
+        with conn.cursor() as cur:
+            cur.execute('DROP TABLE IF EXISTS "osm_views"')
+            conn.commit()
+            reproject_geotiff = f"gdalwarp -tr 0.01 0.01 -co COMPRESS=LZW -t_srs EPSG:4326 \
+                {datafile} osmviews_4326.tiff"
+            subprocess.run(["/bin/bash", "-c" , reproject_geotiff], check=True)
+
+            import_geotiff = f"raster2pgsql -I -C -Y -t 100x100 osmviews_4326.tiff \
+                public.osm_views | psql {dsn} > /dev/null"
+            subprocess.run(["/bin/bash", "-c" , import_geotiff], check=True)
+
+            cleanup = "rm osmviews_4326.tiff"
+            subprocess.run(["/bin/bash", "-c" , cleanup], check=True)
 
     return 0
 
