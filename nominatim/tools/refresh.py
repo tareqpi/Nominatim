@@ -166,16 +166,30 @@ def import_osm_views_geotiff(dsn: str, data_path: Path) -> int:
         with conn.cursor() as cur:
             cur.execute('DROP TABLE IF EXISTS "osm_views"')
             conn.commit()
+
             reproject_geotiff = f"gdalwarp -tr 0.01 0.01 -co COMPRESS=LZW -t_srs EPSG:4326 \
                 {datafile} osmviews_4326.tiff"
             subprocess.run(["/bin/bash", "-c" , reproject_geotiff], check=True)
 
-            import_geotiff = f"raster2pgsql -I -C -Y -t 100x100 osmviews_4326.tiff \
+            tile_size = 100
+            import_geotiff = f"raster2pgsql -I -C -Y -t {tile_size}x{tile_size} osmviews_4326.tiff \
                 public.osm_views | psql {dsn} > /dev/null"
             subprocess.run(["/bin/bash", "-c" , import_geotiff], check=True)
 
             cleanup = "rm osmviews_4326.tiff"
             subprocess.run(["/bin/bash", "-c" , cleanup], check=True)
+
+            # This table is created to get the max view count in the raster for normalizing the views data
+            cur.execute(f"""
+            CREATE TABLE place_views AS (
+                SELECT ST_Value(osm_views.rast, 1, x, y) AS view_count
+                FROM osm_views CROSS JOIN
+                generate_series(1, {tile_size}) As x
+                CROSS JOIN generate_series(1, {tile_size}) As y
+                WHERE x <= ST_Width(rast) AND y <= ST_Height(rast)
+                ORDER BY view_count DESC);
+            """)
+            conn.commit()
 
     return 0
 

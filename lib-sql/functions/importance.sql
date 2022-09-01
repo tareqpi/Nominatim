@@ -107,7 +107,8 @@ BEGIN
   SELECT ST_Value(osm_views.rast, centroid)
   FROM osm_views
   WHERE ST_Intersects(ST_ConvexHull(osm_views.rast), centroid) LIMIT 1 INTO result;
-  IF result IS NOT NULL;
+
+  IF result IS NOT NULL THEN
     return result;
   ELSE
     return 0;
@@ -122,18 +123,17 @@ CREATE OR REPLACE FUNCTION normalize_osm_views(views BIGINT)
   AS $$
   DECLARE
     normalized_osm_views FLOAT;
+    max_views BIGINT;
   BEGIN
     IF views > 0 THEN
-      normalized_osm_views := (LOG(views))/(LOG(6000000));  
+      -- Get the higheust view count to use it in normalizing the data
+      SELECT view_count FROM place_views LIMIT 1 INTO max_views;
+      normalized_osm_views := (LOG(views))/(LOG(max_views));
     ELSE
       normalized_osm_views := 0.0;
     END IF;
 
-    IF normalized_osm_views > 1.0 THEN
-      RETURN 1.0;
-    ELSE
-      RETURN normalized_osm_views;
-    END IF;
+    RETURN normalized_osm_views;
   END;
 $$
 LANGUAGE plpgsql;
@@ -150,11 +150,11 @@ DECLARE
   result place_importance;
   views BIGINT;
 BEGIN
-  -- -- add OSM views importance
+  -- add importance by OSM views
   views := get_osm_views(centroid);
   result.importance := normalize_osm_views(views) * 0.35;
 
-  -- add wiki importance value to importance if they have one
+  -- add importance by wiki data if the place has one
   FOR match IN SELECT * FROM get_wikipedia_match(extratags, country_code)
                WHERE language is not NULL
   LOOP
