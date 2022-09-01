@@ -127,7 +127,7 @@ CREATE OR REPLACE FUNCTION normalize_osm_views(views BIGINT)
   BEGIN
     IF views > 0 THEN
       -- Get the higheust view count to use it in normalizing the data
-      SELECT view_count FROM place_views LIMIT 1 INTO max_views;
+      SELECT view_count FROM max_views_count INTO max_views;
       normalized_osm_views := (LOG(views))/(LOG(max_views));
     ELSE
       normalized_osm_views := 0.0;

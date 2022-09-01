@@ -179,15 +179,15 @@ def import_osm_views_geotiff(dsn: str, data_path: Path) -> int:
             cleanup = "rm osmviews_4326.tiff"
             subprocess.run(["/bin/bash", "-c" , cleanup], check=True)
 
-            # This table is created to get the max view count in the raster for normalizing the views data
+            # To normalize the views, the max view count is retrieved
             cur.execute(f"""
-            CREATE TABLE place_views AS (
+            CREATE TABLE max_views_count AS (
                 SELECT ST_Value(osm_views.rast, 1, x, y) AS view_count
                 FROM osm_views CROSS JOIN
                 generate_series(1, {tile_size}) As x
                 CROSS JOIN generate_series(1, {tile_size}) As y
                 WHERE x <= ST_Width(rast) AND y <= ST_Height(rast)
-                ORDER BY view_count DESC);
+                ORDER BY view_count DESC LIMIT 1);
             """)
             conn.commit()
 
