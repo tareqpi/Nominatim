@@ -154,7 +154,6 @@ def import_osm_views_geotiff(dsn: str, data_path: Path) -> int:
         be found. Throws an exception if there was an error reading the file.
     """
     datafile = data_path / 'osmviews.tiff'
-
     if not datafile.exists():
         return 1
     with connect(dsn) as conn:
@@ -164,30 +163,31 @@ def import_osm_views_geotiff(dsn: str, data_path: Path) -> int:
             return 2
 
         with conn.cursor() as cur:
-            cur.execute('DROP TABLE IF EXISTS "osm_views"')
+            cur.execute("""DROP TABLE IF EXISTS "osm_views";
+                           DROP TABLE IF EXISTS "osm_views_stat";""")
             conn.commit()
 
-            reproject_geotiff = f"gdalwarp -tr 0.01 0.01 -co COMPRESS=LZW -t_srs EPSG:4326 \
-                {datafile} osmviews_4326.tiff"
+            # -ovr: 6 -> zoom 12, 5 -> zoom 13, 4 -> zoom 14, 3 -> zoom 15
+            reproject_geotiff = f"gdalwarp -q -multi -ovr 3 -overwrite \
+                -co COMPRESS=LZW -tr 0.01 0.01 -t_srs EPSG:4326 {datafile} raster2import.tiff"
             subprocess.run(["/bin/bash", "-c" , reproject_geotiff], check=True)
 
-            tile_size = 100
-            import_geotiff = f"raster2pgsql -I -C -Y -t {tile_size}x{tile_size} osmviews_4326.tiff \
+            tile_size = 256
+            import_geotiff = f"raster2pgsql -I -C -Y -t {tile_size}x{tile_size} raster2import.tiff \
                 public.osm_views | psql {dsn} > /dev/null"
             subprocess.run(["/bin/bash", "-c" , import_geotiff], check=True)
 
-            cleanup = "rm osmviews_4326.tiff"
+            cleanup = "rm raster2import.tiff"
             subprocess.run(["/bin/bash", "-c" , cleanup], check=True)
 
-            # To normalize the views, the max view count is retrieved
+            # To normalize osm views data, the max view value is needed
             cur.execute(f"""
-            CREATE TABLE max_views_count AS (
-                SELECT ST_Value(osm_views.rast, 1, x, y) AS view_count
+            CREATE TABLE osm_views_stat AS (
+                SELECT MAX(ST_Value(osm_views.rast, 1, x, y)) AS max_views_count
                 FROM osm_views CROSS JOIN
                 generate_series(1, {tile_size}) As x
                 CROSS JOIN generate_series(1, {tile_size}) As y
-                WHERE x <= ST_Width(rast) AND y <= ST_Height(rast)
-                ORDER BY view_count DESC LIMIT 1);
+                WHERE x <= ST_Width(rast) AND y <= ST_Height(rast));
             """)
             conn.commit()
 

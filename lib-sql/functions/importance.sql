@@ -126,8 +126,8 @@ CREATE OR REPLACE FUNCTION normalize_osm_views(views BIGINT)
     max_views BIGINT;
   BEGIN
     IF views > 0 THEN
-      -- Get the higheust view count to use it in normalizing the data
-      SELECT view_count FROM max_views_count INTO max_views;
+      -- Get the highest view count to use it in normalizing the data
+      SELECT max_views_count FROM osm_views_stat INTO max_views;
       normalized_osm_views := (LOG(views))/(LOG(max_views));
     ELSE
       normalized_osm_views := 0.0;
@@ -158,7 +158,7 @@ BEGIN
   FOR match IN SELECT * FROM get_wikipedia_match(extratags, country_code)
                WHERE language is not NULL
   LOOP
-    result.importance := result.importance + match.importance * 0.65;
+    result.importance := COALESCE(result.importance, 0) + match.importance * 0.65;
     result.wikipedia := match.language || ':' || match.title;
     RETURN result;
   END LOOP;
@@ -167,7 +167,7 @@ BEGIN
     FOR match IN SELECT * FROM wikipedia_article
                   WHERE wd_page_title = extratags->'wikidata'
                   ORDER BY language = 'en' DESC, langcount DESC LIMIT 1 LOOP
-      result.importance := result.importance + match.importance * 0.65;
+      result.importance := COALESCE(result.importance, 0) + match.importance * 0.65;
       result.wikipedia := match.language || ':' || match.title;
       RETURN result;
     END LOOP;
