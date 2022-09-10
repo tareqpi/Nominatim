@@ -163,9 +163,8 @@ def import_osm_views_geotiff(dsn: str, data_path: Path) -> int:
             return 2
 
         with conn.cursor() as cur:
-            cur.execute("""DROP TABLE IF EXISTS "osm_views";
-                           DROP TABLE IF EXISTS "osm_views_stat";""")
-            conn.commit()
+            cur.drop_table("osm_views")
+            cur.drop_table("osm_views_stat")
 
             # -ovr: 6 -> zoom 12, 5 -> zoom 13, 4 -> zoom 14, 3 -> zoom 15
             reproject_geotiff = f"gdalwarp -q -multi -ovr 3 -overwrite \
