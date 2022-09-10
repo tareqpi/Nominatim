@@ -148,11 +148,22 @@ CREATE OR REPLACE FUNCTION compute_importance(extratags HSTORE,
 DECLARE
   match RECORD;
   result place_importance;
+  osm_views_exists BIGINT;
   views BIGINT;
 BEGIN
+  -- check if osm_views exists
+  SELECT COUNT(table_name)
+    INTO osm_views_exists
+  FROM information_schema.tables
+  WHERE table_schema LIKE 'public' AND 
+        table_type LIKE 'BASE TABLE' AND
+	      table_name = 'osm_views';
+
   -- add importance by OSM views
-  views := get_osm_views(centroid);
-  result.importance := normalize_osm_views(views) * 0.35;
+  IF osm_views_exists THEN
+    views := get_osm_views(centroid);
+    result.importance := normalize_osm_views(views) * 0.35;
+  END IF;
 
   -- add importance by wiki data if the place has one
   FOR match IN SELECT * FROM get_wikipedia_match(extratags, country_code)
