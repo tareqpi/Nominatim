@@ -1,6 +1,6 @@
 ## Introduction
 
-This report is Google's Summer of Code 2022 project which talks about the progress of enhancing Nominatim’s search results ranking using OSM views. To have a background understanding of the project, you can check the overview of the project [here](https://www.openstreetmap.org/user/tareqpi/diary/399231) followed by the project’s first phase [here](https://www.openstreetmap.org/user/tareqpi/diary/399655).
+This report is the documentation of Nominatim's Google Summer of Code 2022 project — Importance By OSM views, which is about enhancing Nominatim’s search results ranking using OSM views data. To have a background understanding of the project, you can check the overview of the project [here](https://www.openstreetmap.org/user/tareqpi/diary/399231) followed by the project’s first phase [here](https://www.openstreetmap.org/user/tareqpi/diary/399655).
 
 
 
@@ -51,7 +51,7 @@ The performance of the import functionality significantly improved compared to h
             subprocess.run(["/bin/bash", "-c" , cleanup], check=True)
 
 ```
-
+<br/>
 As shown in the table below, based on the areas that each zoom level can represents, the most uitable tile zoom levels to use are zoom levels 12 to 15.
 
 
@@ -60,7 +60,7 @@ As shown in the table below, based on the areas that each zoom level can represe
   <img src="https://drive.google.com/uc?export=view&id=1fQeeA6XC1eE18njkHfe5Xre4LWH1DopI">
 </div>
 
-
+<br/><br/>
 Furthermore, the table below are performance measurement results of the selected zoom levels for the GeoTIFF file.
 
 
@@ -86,13 +86,13 @@ Data normalization is the process of preparing and transforming the numeric valu
 
 The min-max normalization technique takes the difference between the number that needs to be normalized and the minimum value found in the dataset, to divide it by the difference between the maximum and the minimum values in the dataset as shown below. This normalization technique however cannot be used for this project as it has a drawback due to it being very sensitive to outliers. The maximum number of views is very huge compared to most of the other tile view counts which mean that the division will usually yield a very tiny number that is close to zero (example: 40 divided by 4,000,000 = 0.00001).
 
-$$\LARGE\text{views}_{\text{norm}} = \frac{\text{views}_{i} - \text{min(views)}}{\text{max(views)} - \text{min(views)}}$$
+$$\LARGE views_{norm} = \frac{views_{i} - min(views)}{max(views) - min(views)}$$
 
 ### 2) Logarithmic Transformation
 
 The second approach to scale the numbers so that they be in the range of 0 to 1 is to use the logarithmic transformation. This approach has a logarithmic growth as opposed to the min-max normalization which has a linear growth. The logarithmic transformation takes the log function of the number that needs to be normalized and then divides it by the log function of the maximum number in the dataset. Furthermore, this technique is not affected by the outliers as the min-max normalization, therefore it is more suitable to be used in this project than the min-max normalization.
 
-$$\LARGE\text{views}_{\text{norm}} = \frac{\log(\text{views}_{i})}{\log(\text{max(views)})}$$
+$$\LARGE views_{norm} = \frac{\log(views_{i})}{\log(max(views))}$$
 
 Below is a visualization of the logarithmic transformation where the maximum number of views is set to 5. The X-axis represents the number of views and the Y-axis contains the valid range of normalization which is from 0 to 1. The value of the normalized value (Y-axis) increases as the number of views (X-axis) increases. The normalized value reaches its maximum value, which is 1, when the number of views reaches the maximum value, which is 5 in the graph below. When the maximum view number is set to a higher value than what is used in the graph below, the Y-axis will reach 1 (the maximum normalized value) when the X-axis reaches the maximum view value.
 
@@ -162,7 +162,7 @@ It must be noted that this is the correct way of refreshing the OSM views import
 |15|418,428|
 
 </div>
-
+<br/>
 
 After the raster table `osm_views` is created from the cropped GeoTIFF file, the data inside that table is used to get the raw OSM view numbers. This is done by creating another table that contains the place_id’s from the `placex` table as well as the corresponding view numbers which are extracted from finding a raster in the raster table that intersects with the places’ centroids. The SQL query below shows the creation of the `place_views` table.
 
