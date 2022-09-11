@@ -109,7 +109,7 @@ Nominatim currently uses the wiki importance data solely to set the importance s
 
 $$\LARGE \text{Importance} = (\text{Wiki}\times0.65) + (\text{OSM Views}\times0.35)$$
 
-## Integrating Osm Views Into Importance Score Computation
+## Integrating OSM Views Into Importance Score Computation
 
 The new additions that are proposed to be added into Nominatim’s codebase are tested to understand how the OSM views data alter and enhance the accuracy of the importance score computation for each place. Because testing with a database that has a full planet import takes a significant amount of time, a smaller database is created that contains a subset of the OSM data to faster test the new importance computation. The chosen data subset that is used is [Latvia’s OSM data](https://download.geofabrik.de/europe/latvia-latest.osm.pbf) which is currently 96 MB in size. Furthermore, the [wiki importance data](https://www.nominatim.org/data/wikimedia-importance.sql.gz) and the GeoTIFF file that has the OSM views data are downloaded to be used for the places’ importance score computation. The first step is to import Latvia’s OSM data and wiki importance data into Nominatim’s database. This is done by putting the Latvia's OSM file and the wiki importance file into the project directory to initiate the import process using the command below.
 
@@ -311,4 +311,4 @@ An alternative explanation for the weak correlation is that the metric used for 
 
 ## Acknowledgments
 
-I would like to thank my mentors, Sarah Hoffman ([@lonvia](https://www.openstreetmap.org/user/lonvia)) and Marc Tobias ([@mtmail](https://www.openstreetmap.org/user/mtmail)), for their guidance and support throughout the implementation of this project. I would also like to thank Paul Norman ([@pnorman](https://www.openstreetmap.org/user/pnorman)) for his comment and the discussion I had with him afterward that shaped the implementation of this project. I would also like to thank [OpenCage](https://opencagedata.com) for providing me with the server to work with on this project. I had a great learning experience and I am thankful to Google Summer of Code and to The OpenStreetMap Foundation for this opportunity.
+I would like to thank my mentors, Sarah Hoffman ([@lonvia](https://www.openstreetmap.org/user/lonvia)) and Marc Tobias ([@mtmail](https://www.openstreetmap.org/user/mtmail)), for their guidance and support throughout the implementation of this project. I would also like to thank Paul Norman ([@pnorman](https://www.openstreetmap.org/user/pnorman)) for his comment and the discussion I had with him afterward that shaped the implementation of this project. I would also like to thank [OpenCage](https://opencagedata.com) for providing me with the server to work with on this project. I had a great learning experience and I am thankful to Google Summer of Code and to the OpenStreetMap Foundation for this opportunity.
