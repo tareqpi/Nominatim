@@ -51,6 +51,7 @@ The performance of the import functionality significantly improved compared to h
 
 ```
 <br/>
+
 As shown in the [table](https://wiki.openstreetmap.org/wiki/Zoom_levels) below, based on the areas that each zoom level can represent, the most suitable tile zoom levels to use are zoom levels 12 to 15.
 
 
