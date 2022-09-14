@@ -355,7 +355,7 @@ An alternative explanation for the weak correlation is that the metric used for 
 
 <div align="center">
   <img src="https://drive.google.com/uc?export=view&id=1zKBvZVMXCfgrjg5Jk1y0Vw4XFPtis7qd">
-  <p>Fig.17 - Fluctation of OSM Maximum Views Numbers During Ten Period Time</p>
+  <p>Fig.17 - Fluctuation in OSM Maximum Views Numbers During Ten Period Time</p>
 </div>
 
 The historic importance of a place does not necessarily mean that the place is interesting enough for the users to view it, but rather, the users want to view places that are currently trending such as a place that has been opened recently, or a place that hosts an important sporting event. In a way, this means that adding the OSM views data actually enhances the importance score computation of a place in a different dimension that is not considered in the wiki importance data. However, if that is the case, then the OSM importance data should be limited to a high degree where it does not negatively affect the ranking of places because of the OSM views fluctuations.
