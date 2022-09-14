@@ -1,7 +1,6 @@
 ## Introduction
 
-This report is the documentation of Nominatim's Google Summer of Code 2022 project — Importance By OSM views, which is about enhancing Nominatim’s search results ranking using OSM views data. To have a background understanding of the project, you can check the overview of the project [here](https://www.openstreetmap.org/user/tareqpi/diary/399231) followed by the project’s first phase [here](https://www.openstreetmap.org/user/tareqpi/diary/399655).
-
+This report is the documentation of Nominatim's Google Summer of Code 2022 project — "Importance By OSM views", which is about enhancing Nominatim’s search results ranking using OSM views data. To have a background understanding of the project, you can check the overview of the project [here](https://www.openstreetmap.org/user/tareqpi/diary/399231) followed by the project’s first phase [here](https://www.openstreetmap.org/user/tareqpi/diary/399655).
 
 
 ## Second Phase Goals
@@ -15,7 +14,7 @@ Below are the goals of the second and final phase of this project.
 
 ## Import Functionality Performance Enhancements
 
-The performance of the import functionality significantly improved compared to how it was in the first phase of this project. The original import technique that was implemented in the first phase was inefficient in terms of time (over 3 hours) and space (over 4 GB) and that is because there was a logical flaw that was later identified. The [GeoTIFF file](https://qrank.wmcloud.org/download/osmviews.tiff) that is used to import the OSM views data is multi-dimensional which means that the GeoTIFF has different zoom levels and in each zoom level there is a different set of data as shown in the figure below.
+The performance of the import functionality significantly improved compared to how it was in the first phase of this project. The original import technique that was implemented in the first phase was inefficient in terms of time (over 3 hours) and space (over 4 GB) and that is because there was a logical flaw that was later identified. The [GeoTIFF](https://en.wikipedia.org/wiki/GeoTIFF) file that is used to import the OSM views data is multi-dimensional which means that the GeoTIFF has different zoom levels and in each zoom level there is a different set of data as shown in the figure below.
 
 
 <div align="center">
@@ -33,7 +32,7 @@ The performance of the import functionality significantly improved compared to h
 </div>
 
 
-[Gdalwarp](https://gdal.org/programs/gdalwarp.html), which is a raster warping, reprojection, and mosaicing tool, is added to be programmatically called to create a compressed, temporary version of the original GeoTIFF file that has the needed Spatial Reference Identifier (SRID) as well as one of the overview levels which corresponds to a zoom level so that it can be correctly imported to Nominatim’s database. It takes around 15 seconds to reproject and create the temporary GeoTIFF file with a specific zoom level. The temporary GeoTIFF file will be deleted automatically after its data has been imported to the database. Additionally, raster2pgsql’s option to use the COPY statement is used instead of the INSERT statement to speed up the import process. Furthermore, the tile size is now bigger (256x256) than what it was previously (100x100) in the first phase of the project. Below is the portion of the code responsible for the GeoTIFF import process.
+[Gdalwarp](https://gdal.org/programs/gdalwarp.html), which is a raster warping, reprojection, and mosaicing tool, is added to be programmatically called to create a compressed, temporary version of the original GeoTIFF file that has the needed Spatial Reference Identifier ([SRID](https://en.wikipedia.org/wiki/Spatial_reference_system)) as well as one of the overview levels which corresponds to a zoom level so that it can be correctly imported to Nominatim’s database. It takes around 15 seconds to reproject and create the temporary GeoTIFF file with a specific zoom level. The temporary GeoTIFF file will be deleted automatically after its data has been imported to the database. Additionally, raster2pgsql’s option to use the COPY statement is used instead of the INSERT statement to speed up the import process. Furthermore, the tile size is now bigger (256x256) than what it was previously (100x100) in the first phase of the project. Below is the portion of the code responsible for the GeoTIFF import process.
 
 
 ```python
@@ -52,7 +51,7 @@ The performance of the import functionality significantly improved compared to h
 
 ```
 <br/>
-As shown in the table below, based on the areas that each zoom level can represents, the most uitable tile zoom levels to use are zoom levels 12 to 15.
+As shown in the [table](https://wiki.openstreetmap.org/wiki/Zoom_levels) below, based on the areas that each zoom level can represent, the most suitable tile zoom levels to use are zoom levels 12 to 15.
 
 
 <div align="center">
@@ -61,8 +60,8 @@ As shown in the table below, based on the areas that each zoom level can represe
 </div>
 
 <br/><br/>
-Furthermore, the table below are performance measurement results of the selected zoom levels for the GeoTIFF file.
 
+Furthermore, the table below are performance measurement results of the selected zoom levels of the GeoTIFF file. The server used to conduct the performance measurements has 8 core AMD Ryzen™ 7 3700X, 64GB RAM, 1TB NVMe disk (900GB usable, 850GB free), running Ubuntu 22.04 LTS.
 
 <div align="center">
   <p>Table 2 - GeoTIFF Peformance Results in Different Zoom Levels</p>
@@ -94,7 +93,7 @@ The second approach to scale the numbers so that they be in the range of 0 to 1 
 
 $$\LARGE views_{norm} = \frac{\log(views_{i})}{\log(max(views))}$$
 
-Below is a visualization of the logarithmic transformation where the maximum number of views is set to 5. The X-axis represents the number of views and the Y-axis contains the valid range of normalization which is from 0 to 1. The value of the normalized value (Y-axis) increases as the number of views (X-axis) increases. The normalized value reaches its maximum value, which is 1, when the number of views reaches the maximum value, which is 5 in the graph below. When the maximum view number is set to a higher value than what is used in the graph below, the Y-axis will reach 1 (the maximum normalized value) when the X-axis reaches the maximum view value.
+Below is a visualization of the logarithmic transformation where the maximum number of views is set to 5 which, compared to the actual OSM views, is a very small number that is only chosen so that the graph below can be easily read. The X-axis represents the number of views and the Y-axis contains the valid range of normalization which is from 0 to 1. The normalized value (Y-axis) increases as the number of views (X-axis) gets closer to the maximum views count.
 
 
 <div align="center">
@@ -105,13 +104,13 @@ Below is a visualization of the logarithmic transformation where the maximum num
 
 ## Computation of the Importance Score
 
-Nominatim currently uses the wiki importance data solely to set the importance score for the places that are important enough to have a Wikipedia article. Now that the OSM views data is in the database, it will be used as a secondary parameter with the wiki data being the primary parameter to compute the importance scores for all places. The new importance score consists of the wiki importance data with the addition of the normalized OSM views to the wiki importance values. OSM views data has a weightage of 35% and the wiki importance has a weightage of 65%.
+Nominatim currently uses the wiki importance data solely to set the importance score for the places that are important enough to have a Wikipedia article. Now that the OSM views data is in the database, it will be used as a secondary parameter with the wiki data being the primary parameter to compute the importance scores for all places. The new importance score consists of the wiki importance data with the addition of the normalized OSM views to the wiki importance values. OSM views importance data has a weightage of 35% and the wiki importance data has a weightage of 65%. These percentages are set as initial values that need to be later reviewed.
 
 $$\LARGE \text{Importance} = (\text{Wiki}\times0.65) + (\text{OSM Views}\times0.35)$$
 
 ## Integrating OSM Views Into Importance Score Computation
 
-The new additions that are proposed to be added into Nominatim’s codebase are tested to understand how the OSM views data alter and enhance the accuracy of the importance score computation for each place. Because testing with a database that has a full planet import takes a significant amount of time, a smaller database is created that contains a subset of the OSM data to faster test the new importance computation. The chosen data subset that is used is [Latvia’s OSM data](https://download.geofabrik.de/europe/latvia-latest.osm.pbf) which is currently 96 MB in size. Furthermore, the [wiki importance data](https://www.nominatim.org/data/wikimedia-importance.sql.gz) and the GeoTIFF file that has the OSM views data are downloaded to be used for the places’ importance score computation. The first step is to import Latvia’s OSM data and wiki importance data into Nominatim’s database. This is done by putting the Latvia's OSM file and the wiki importance file into the project directory to initiate the import process using the command below.
+The new additions that are proposed to be added into Nominatim’s codebase are tested to understand how the OSM views data alter and enhance the accuracy of the importance score computation for each place. Because testing with a database that has a full planet import takes a significant amount of time, a smaller database is created that contains a subset of the OSM data to faster test the new importance computation. The chosen data subset that is used is [Latvia’s OSM data](https://download.geofabrik.de/europe/latvia.html) which is currently 96 MB in size (compared to 58 GB for the whole planet). Furthermore, the [wiki importance data](https://www.nominatim.org/data/wikimedia-importance.sql.gz) and the GeoTIFF file that has the OSM views data are downloaded to be used for the places’ importance score computation. The first step is to import Latvia’s OSM data and wiki importance data into Nominatim’s database. This is done by putting the Latvia's OSM file and the wiki importance file into the project directory to initiate the import process using the command below.
 
 
 <div align="center">
@@ -130,7 +129,7 @@ CREATE TABLE place_wiki_importance AS (
 );
 ```
 
-After the wiki data is copied to another table to be used later, the GeoTIFF file is then cropped to create a smaller version of the file that only contains the OSM views data of Latvia. Gdalwarp is used in order to crop a region from the original GeoTIFF file. This is done by downloading a zip file that contains a [shapefile](https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/50m/cultural/ne_50m_admin_0_countries.zip) of the countries in which the zip file is extracted and cut to use Latvia’s polygon with the gdalwarp command line to cut the GeoTIFF file as shown below. The polygons are simplified and do not exactly match with the OSM map, however, it is still good enough for the purpose of analyzing the results of the importance score computation. In addition to extracting the correct shape of the GeoTIFF file, an overview level must be extracted where each overview level equates to a different zoom level. Zoom levels 12, 13, 14, and 15 correspond in the GeoTIFF file to overview levels 6, 5, 4, and 3 respectively. Furthermore, the extracted raster is reprojected to have the SRID of 4326 so that it matches the SRID of the centroids of the places in `placex` table.
+After the wiki data is copied to another table to be used later, the GeoTIFF file is then cropped to create a smaller version of the file that only contains the OSM views data of Latvia. Gdalwarp is used in order to crop a region from the original GeoTIFF file. This is done by downloading a zip file that contains a [shapefile](https://www.naturalearthdata.com/downloads/50m-cultural-vectors/50m-admin-0-countries-2) of the countries in which the zip file is extracted and cut to use Latvia’s polygon with the gdalwarp command line to cut the GeoTIFF file as shown below. The polygons are simplified and do not exactly match with the OSM map, however, it is still good enough for the purpose of analyzing the results of the importance score computation. In addition to extracting the correct shape of the GeoTIFF file, an overview level must be extracted where each overview level equates to a different zoom level. Zoom levels 12, 13, 14, and 15 correspond in the GeoTIFF file to overview levels 6, 5, 4, and 3 respectively. Furthermore, the extracted raster is reprojected to have the SRID of 4326 so that it matches the SRID of the centroids of the places in `placex` table.
 
 
 <div align="center">
@@ -139,7 +138,7 @@ After the wiki data is copied to another table to be used later, the GeoTIFF fil
 </div>
 
 
-Now that Latvia’s extract of the original GeoTIFF file is ready, the cropped GeoTIFF file is put into the project’s directory and then the code portion of computing the wiki importance score in the function `compute_importance` in `importance.sql` is commented out so that the new importance score is computed only using the OSM views data. The next step is triggering Nominatim’s refresh function to import the GeoTIFF extract into a raster table and then compute the OSM views importance values and put them in the table `placex` using the command below.
+Now that Latvia’s extract of the original GeoTIFF file is ready, the cropped GeoTIFF file is put into the project’s directory and then the code portion of computing the wiki importance score in the function `compute_importance` in `importance.sql` is commented out so that the new importance score is computed only using the OSM views data. The next step is running Nominatim’s refresh function to import the GeoTIFF extract into a raster table and then compute the OSM views importance values and put them in the table `placex` using the command below.
 
 
 <div align="center">
@@ -148,8 +147,54 @@ Now that Latvia’s extract of the original GeoTIFF file is ready, the cropped G
 </div>
 
 
-It must be noted that this is the correct way of refreshing the OSM views importance values when running Nominatim normally, however, when testing the computation of the importance score using a GeoTIFF extract, the maximum views value is limited to the views numbers inside that GeoTIFF extract. Therefore, the code portion of retrieving the maximum views value is disabled and a hardcoded maximum value is set in the OSM views normalization function. The maximum views value is retrieved from the tile log server using a simple python script that returns the maximum views value based on the zoom level. The maximum views value of the chosen zoom levels (as of writing this report) is shown in the table below. Before triggering the refresh function of the OSM views data as well as recomputing the importance score for each zoom level, the hardcoded maximum views value in the normalization function must be changed accordingly.
+This is the correct way of refreshing the OSM views importance values when running Nominatim normally, however, when testing the computation of the importance score using a GeoTIFF extract, the maximum views value is limited to the views numbers inside that GeoTIFF extract. Therefore, the code portion of retrieving the maximum views value is disabled and a hardcoded maximum value is set in the OSM views normalization function. The maximum views value is retrieved from the log file that is found in the [tile server](https://planet.openstreetmap.org/tile_logs). A simple python script that is shown below reads through that log file and returns the maximum views values for the tiles of zoom levels 12 to 15.
 
+```python
+#!/usr/bin/env python3
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("filename", help = "Name of the file that will be read from")
+args = parser.parse_args()
+
+max_views = {'zoom_12': {'tile': '', 'views': 0},
+             'zoom_13': {'tile': '', 'views': 0},
+             'zoom_14': {'tile': '', 'views': 0},
+             'zoom_15': {'tile': '', 'views': 0}}
+
+file = open(args.filename, 'r')
+lines = file.readlines()
+
+for line in lines:
+    splitline=line.split(' ',2)
+    tile=splitline[0].split('/',4)
+    if (tile[0] == '12'):
+        views = int(splitline[1])
+        if (views > max_views['zoom_12']['views']):
+            max_views['zoom_12']['views'] = views
+            max_views['zoom_12']['tile'] = f'({tile[1]}, {tile[2]})'
+    elif (tile[0] == '13'):
+        views = int(splitline[1])
+        if (views > max_views['zoom_13']['views']):
+            max_views['zoom_13']['views'] = views
+            max_views['zoom_13']['tile'] = f'({tile[1]}, {tile[2]})'
+    elif (tile[0] == '14'):
+        views = int(splitline[1])
+        if (views > max_views['zoom_14']['views']):
+            max_views['zoom_14']['views'] = views
+            max_views['zoom_14']['tile'] = f'({tile[1]}, {tile[2]})'
+    elif (tile[0] == '15'):
+        views = int(splitline[1])
+        if (views > max_views['zoom_15']['views']):
+            max_views['zoom_15']['views'] = views
+            max_views['zoom_15']['tile'] = f'({tile[1]}, {tile[2]})'
+
+for k, v in max_views.items():
+    print(k, v)
+
+```
+
+The maximum views values of the chosen zoom levels currently is shown in the table below. Before refreshing the OSM views data and recomputing the importance score based on each selected zoom level, the hardcoded maximum views value in the normalization function must be changed accordingly.
 
 <div align="center">
   <p>Table 3 - Maximum Views Count of Different Zoom levels</p>
@@ -176,7 +221,7 @@ CREATE TABLE place_views_z12 AS (
 ```
 
 
-Once the raw OSM view numbers are extracted and put into the new `place_views` table, another table, called `place_importance`, is created in which it contains all the necessary information to create graphs that show the relationship of the parameters that contribute to the final importance score. The `place_importance` table has places' wikipedia articles with their wiki importance scores, their raw OSM views with their OSM views importance scores, and their total combined importance score. The SQL query below shows the creation of the `place_importance` table.
+Once the raw OSM view numbers are extracted and put into the new `place_views` table, another table, called `place_importance`, is created which contains all the necessary information to create graphs that show the relationship of the parameters that contribute to the final importance score. The `place_importance` table has places' wikipedia articles with their wiki importance scores, their raw OSM views with their OSM views importance scores, and their total combined importance score. The SQL query below shows the creation of the `place_importance` table.
 
 
 ```SQL
@@ -205,7 +250,7 @@ After the initial `place_importance` table of one of the zoom levels is created 
 
 ## Visualizing The Results
 
-Now that the `place_importance` tables are created for each zoom level, the data in each of these tables are visualized. There are two set of graphs that are created: correlation graphs between the two parameters used in the importance computation formula and the visualizations of the OSM views normalization process. The graphs are created with [Grafana](https://grafana.com/oss/grafana) in which the data source is configured to be Nominatim’s database which holds the `place_importance` table of each zoom level. Furthermore, in order to create the graphs, a plugin called [scatter](https://grafana.com/grafana/plugins/michaeldmoore-scatter-panel) is installed and used with Grafana.
+Now that the `place_importance` tables are created for each zoom level, the data in each of these tables are visualized. There are two sets of graphs that are created: correlation graphs between the two parameters used in the importance computation formula and the visualizations of the OSM views normalization process. The graphs are created with [Grafana](https://grafana.com/oss/grafana) in which the data source is configured to be Nominatim’s database which holds the `place_importance` table of each zoom level. Furthermore, in order to create the graphs, a plugin called [scatter](https://grafana.com/grafana/plugins/michaeldmoore-scatter-panel) is installed and used with Grafana.
 
 The visualization of the OSM views data normalization is shown below for zoom levels 12 to 15. The graphs are created by querying the `place_importance` table where the raw OSM views (up to 10,000 views) and the normalized forms (`osm_views_importance`) are retrieved to be displayed in the graph in which they are represented on the x-axis and the y-axis respectively. Furthermore, the numbers in the `osm_views_importance` column are divided by 0.35 to cancel the multiplication that happened previously when processing the OSM views importance data in the computation of the final importance score.
 
@@ -288,7 +333,7 @@ The table below shows the correlation coefficient for each of the zoom levels te
 As seen from the correlation graphs, there is a weak correlation between the OSM views importance data and the wiki importance data. It is a strange outcome since it was expected that these parameters have a strong correlation since they contribute to the computation of the new importance score. This could be for a number of reasons which need further testing to be verified.
 
 
-## Zoom Level Bias
+### 1) Zoom Level Bias
 
 Since each zoom level is essentially a different tile in the tile log server, the OSM views data of each zoom level will favor places of a certain size corresponding to that zoom level. For example, users will not need to zoom in that much to view a big place like a city, so the tiles that have a high zoom level will not be served by the server thereby the view count for the high zoom level tiles does not increase. The image below shows several places having different view counts depending on the zoom level. A solution to this potential problem would be further enhancing the import process of the GeoTIFF file so that it includes the OSM views data of multiple zoom levels in its importance computation. Each zoom level data can have a different weight in the computation of the final importance score so that all places have holistic importance scores that truly reflect the importance of each place regardless of the place size and the zoom level used to view that place.
 
@@ -299,15 +344,21 @@ Since each zoom level is essentially a different tile in the tile log server, th
 </div>
 
 
-## Dirty Data
+### 2) Unusual Spikes in OSM Views Numbers
 
-Another potential reason for the weak correlation is that OpenStreetMap is integrated into several theme-specific applications in which users of one of those applications drive the view numbers of places of a certain theme that match that of the application. This causes skewness of the data and the GeoTIFF file containing dirty data which needs to be cleaned.
+Another potential reason for the weak correlation is that OpenStreetMap is integrated into several theme-specific applications in which users of one of those applications drive the view numbers of places of a certain theme that match that of the application. This causes skewness in the data and the GeoTIFF file containing inaccurate data which needs to be cleaned.
 
 
-## Different Metrics
+### 3) Trending Places vs Importance of Places
 
-An alternative explanation for the weak correlation is that the metric used for calculating the wiki importance score for each place is simply different from what the OSM views data actually represents. The historic importance of a place does not necessarily mean that the place is interesting enough for the users to view it, but rather, the users want to view places that are currently trending. This means that adding the OSM views data actually enhances the importance score computation of a place in a different dimension that is not considered in the wiki importance data. However, if that is the case, then the OSM importance data should be limited to a high degree where it does not negatively affect the ranking of places since places can temporarily be trending for a certain period whereas the OSM view numbers are accumulated forever.
+An alternative explanation for the weak correlation is that the metric used for calculating the wiki importance score for each place is simply different from what the OSM views data actually represents. The logs of the tile server contain the number of requests per tile in a given 24-hour UTC day and the GeoTIFF file is created using the set of logs for one week. This shows that the OSM views data is just a snapshot of what is trending at a specific time range. Below is a figure that shows the previously shared python script extracting the maximum OSM views numbers from log files of ten consecutive days. The maximum OSM views numbers of each zoom level is fluctuating depending on the day.
 
+<div align="center">
+  <img src="https://drive.google.com/uc?export=view&id=1zKBvZVMXCfgrjg5Jk1y0Vw4XFPtis7qd">
+  <p>Fig.17 - Fluctation of OSM Maximum Views Numbers During Ten Period Time</p>
+</div>
+
+The historic importance of a place does not necessarily mean that the place is interesting enough for the users to view it, but rather, the users want to view places that are currently trending such as a place that has been opened recently, or a place that hosts an important sporting event. In a way, this means that adding the OSM views data actually enhances the importance score computation of a place in a different dimension that is not considered in the wiki importance data. However, if that is the case, then the OSM importance data should be limited to a high degree where it does not negatively affect the ranking of places because of the OSM views fluctuations.
 
 ## Acknowledgments
 
